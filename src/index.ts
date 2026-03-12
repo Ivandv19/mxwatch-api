@@ -119,13 +119,13 @@ api.get('/cartel/:slug', async (c) => {
     }
 
     // Usar Map y Set para datos únicos
-    const uniqueFactions = new Map();
-    const uniqueLeaders = new Map();
-    const uniqueArmedWings = new Map();
-    const uniqueEconomies = new Map();
-    const statePresence = [];
+    const uniqueFactions = new Map<any, any>();
+    const uniqueLeaders = new Map<any, any>();
+    const uniqueArmedWings = new Map<any, any>();
+    const uniqueEconomies = new Map<any, any>();
+    const statePresence: any[] = [];
 
-    cartelRecord.presences.forEach((presence) => {
+    cartelRecord.presences.forEach((presence: any) => {
       // Guardar presencia por estado
       statePresence.push({
         state: presence.state.name,
@@ -134,7 +134,7 @@ api.get('/cartel/:slug', async (c) => {
       });
 
       // Facciones únicas
-      presence.factions.forEach((pf) => {
+      presence.factions.forEach((pf: any) => {
         uniqueFactions.set(pf.faction.id, {
           name: pf.faction.name,
           focus: pf.faction.focus
@@ -142,7 +142,7 @@ api.get('/cartel/:slug', async (c) => {
       });
 
       // Líderes únicos
-      presence.leaders.forEach((pl) => {
+      presence.leaders.forEach((pl: any) => {
         uniqueLeaders.set(pl.leader.id, {
           name: pl.leader.name,
           alias: pl.leader.alias
@@ -150,14 +150,14 @@ api.get('/cartel/:slug', async (c) => {
       });
 
       // Brazos armados únicos
-      presence.armedWings?.forEach((aw) => {
+      presence.armedWings?.forEach((aw: any) => {
         uniqueArmedWings.set(aw.armedWing.id, {
           name: aw.armedWing.name
         });
       });
 
       // Actividades económicas únicas
-      presence.economies?.forEach((pe) => {
+      presence.economies?.forEach((pe: any) => {
         uniqueEconomies.set(pe.economy.id, {
           name: pe.economy.name
         });
