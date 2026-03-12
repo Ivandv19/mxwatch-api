@@ -14,7 +14,7 @@ const client = postgres(connectionString, {
     max: 10, // máximo de conexiones en pool
     idle_timeout: 20, // segundos
     connect_timeout: 10,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: false // Dokploy internal PostgreSQL no tiene SSL habilitado
 });
 
 export const db = drizzlePostgres(client, { schema });
