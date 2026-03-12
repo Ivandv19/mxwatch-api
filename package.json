@@ -1,0 +1,23 @@
+{
+  "name": "mxwatch-api",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot run src/index.ts",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.12.5",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.6",
+    "@types/pg": "^8.18.0",
+    "dotenv": "^17.3.1",
+    "dotenv-cli": "^11.0.0",
+    "drizzle-kit": "^0.31.9",
+    "wrangler": "^4.4.0"
+  }
+}
