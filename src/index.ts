@@ -9,7 +9,12 @@ const app = new Hono();
 
 // Middlewares globales
 app.use('*', logger());
-app.use('/*', cors());
+app.use(
+  '/*',
+  cors({
+    origin: ['https://mxwatch.mgdc.site', 'http://localhost:3000'],
+  })
+);
 
 const api = app.basePath('/api');
 
