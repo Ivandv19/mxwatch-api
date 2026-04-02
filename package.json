@@ -8,9 +8,12 @@
     "start": "bun run src/index.ts"
   },
   "dependencies": {
+    "@hono/swagger-ui": "^0.6.1",
+    "@hono/zod-openapi": "^1.2.4",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.12.7",
-    "postgres": "^3.4.8"
+    "postgres": "^3.4.8",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.6",

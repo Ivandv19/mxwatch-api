@@ -1,11 +1,21 @@
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { swaggerUI } from '@hono/swagger-ui';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db, healthCheck } from './db';
 import { cartels, states, regionalPresence } from './db/schema';
 
-const app = new Hono();
+// Rutas OpenAPI
+import { healthRoute } from './routes/health.route';
+import { mapRoute } from './routes/map.route';
+import { listCartelsRoute, getCartelBySlugRoute } from './routes/cartel.route';
+import { getStateByNameRoute } from './routes/state.route';
+import { dominantPresenceRoute } from './routes/dominant.route';
+
+// Instancia principal y sub-app para la API
+const app = new OpenAPIHono();
+const api = new OpenAPIHono();
 
 // Middlewares globales
 app.use('*', logger());
@@ -16,29 +26,35 @@ app.use(
   })
 );
 
-const api = app.basePath('/api');
+// -----------------------------------------------------------------------------
+// Registro de Rutas con OpenAPI
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Middleware de health check (opcional pero útil)
-// -----------------------------------------------------------------------------
-api.get('/health', async (c) => {
+// Health Check
+api.openapi(healthRoute, async (c) => {
   const isHealthy = await healthCheck();
+  if (!isHealthy) {
+    return c.json({
+      success: false,
+      error: 'Database connection failed',
+    }, 503);
+  }
   return c.json({
-    status: isHealthy ? 'healthy' : 'unhealthy',
-    timestamp: new Date().toISOString()
-  }, isHealthy ? 200 : 503);
+    success: true,
+    data: {
+      status: 'healthy',
+      timestamp: new Date().toISOString()
+    }
+  }, 200);
 });
 
-// -----------------------------------------------------------------------------
-// 1. Obtener datos completos del mapa
-// -----------------------------------------------------------------------------
-api.get('/map', async (c) => {
+// Map Data
+api.openapi(mapRoute, async (c) => {
   try {
     const presenceRecords = await db.query.states.findMany({
       with: {
         presences: {
           with: { cartel: true },
-          // Ordenar por dominancia (los dominantes primero)
           orderBy: (presences, { desc }) => [desc(presences.isDominant)]
         }
       },
@@ -61,7 +77,7 @@ api.get('/map', async (c) => {
       success: true,
       data: result,
       timestamp: new Date().toISOString()
-    });
+    }, 200);
   } catch (error) {
     console.error('Error in /map:', error);
     return c.json({
@@ -72,10 +88,8 @@ api.get('/map', async (c) => {
   }
 });
 
-// -----------------------------------------------------------------------------
-// 2. Obtener lista básica de todos los cárteles
-// -----------------------------------------------------------------------------
-api.get('/cartels', async (c) => {
+// List Cartels
+api.openapi(listCartelsRoute, async (c) => {
   try {
     const allCartels = await db.query.cartels.findMany({
       orderBy: (cartels, { asc }) => [asc(cartels.name)]
@@ -83,28 +97,34 @@ api.get('/cartels', async (c) => {
 
     return c.json({
       success: true,
-      data: allCartels,
+      data: allCartels.map(cr => ({
+        id: cr.id,
+        name: cr.name,
+        slug: cr.slug,
+        color: cr.color,
+        globalStatus: cr.globalStatus,
+        foreignDesignation: cr.foreignDesignation,
+        fifaRiskLevel: cr.fifaRiskLevel
+      })),
       count: allCartels.length
-    });
+    }, 200);
   } catch (error) {
     console.error('Error in /cartels:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// -----------------------------------------------------------------------------
-// 3. Obtener detalle completo de un cártel por slug
-// -----------------------------------------------------------------------------
-api.get('/cartel/:slug', async (c) => {
+// Get Cartel By Slug
+api.openapi(getCartelBySlugRoute, async (c) => {
   try {
-    const cartelSlug = c.req.param('slug');
+    const { slug } = c.req.valid('param');
 
     const cartelRecord = await db.query.cartels.findFirst({
-      where: eq(cartels.slug, cartelSlug),
+      where: eq(cartels.slug, slug),
       with: {
         presences: {
           with: {
-            state: true, // Incluir estado para contexto geográfico
+            state: true,
             factions: { with: { faction: true } },
             leaders: { with: { leader: true } },
             armedWings: { with: { armedWing: true } },
@@ -118,7 +138,6 @@ api.get('/cartel/:slug', async (c) => {
       return c.json({ success: false, error: 'Cartel not found' }, 404);
     }
 
-    // Usar Map y Set para datos únicos
     const uniqueFactions = new Map<any, any>();
     const uniqueLeaders = new Map<any, any>();
     const uniqueArmedWings = new Map<any, any>();
@@ -126,41 +145,26 @@ api.get('/cartel/:slug', async (c) => {
     const statePresence: any[] = [];
 
     cartelRecord.presences.forEach((presence: any) => {
-      // Guardar presencia por estado
       statePresence.push({
         state: presence.state.name,
         isDominant: presence.isDominant,
         note: presence.localIntelligenceNote
       });
 
-      // Facciones únicas
       presence.factions.forEach((pf: any) => {
-        uniqueFactions.set(pf.faction.id, {
-          name: pf.faction.name,
-          focus: pf.faction.focus
-        });
+        uniqueFactions.set(pf.faction.id, { name: pf.faction.name, focus: pf.faction.focus });
       });
 
-      // Líderes únicos
       presence.leaders.forEach((pl: any) => {
-        uniqueLeaders.set(pl.leader.id, {
-          name: pl.leader.name,
-          alias: pl.leader.alias
-        });
+        uniqueLeaders.set(pl.leader.id, { name: pl.leader.name, alias: pl.leader.alias });
       });
 
-      // Brazos armados únicos
       presence.armedWings?.forEach((aw: any) => {
-        uniqueArmedWings.set(aw.armedWing.id, {
-          name: aw.armedWing.name
-        });
+        uniqueArmedWings.set(aw.armedWing.id, { name: aw.armedWing.name });
       });
 
-      // Actividades económicas únicas
       presence.economies?.forEach((pe: any) => {
-        uniqueEconomies.set(pe.economy.id, {
-          name: pe.economy.name
-        });
+        uniqueEconomies.set(pe.economy.id, { name: pe.economy.name });
       });
     });
 
@@ -184,19 +188,18 @@ api.get('/cartel/:slug', async (c) => {
         armedWings: Array.from(uniqueArmedWings.values()),
         economicActivities: Array.from(uniqueEconomies.values())
       }
-    });
+    }, 200);
   } catch (error) {
     console.error('Error in /cartel/:slug:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// -----------------------------------------------------------------------------
-// 4. Obtener inteligencia de un estado específico
-// -----------------------------------------------------------------------------
-api.get('/state/:name', async (c) => {
+// Get State Intelligence
+api.openapi(getStateByNameRoute, async (c) => {
   try {
-    const stateName = decodeURIComponent(c.req.param('name'));
+    const { name } = c.req.valid('param');
+    const stateName = decodeURIComponent(name);
 
     const stateRecord = await db.query.states.findFirst({
       where: eq(states.name, stateName),
@@ -234,6 +237,7 @@ api.get('/state/:name', async (c) => {
           localIntelligenceNote: p.localIntelligenceNote,
           globalStatus: p.cartel.globalStatus,
           foreignDesignation: p.cartel.foreignDesignation,
+          fifaRiskLevel: p.cartel.fifaRiskLevel,
           factions: p.factions.map((f) => ({
             id: f.faction.id,
             name: f.faction.name,
@@ -254,17 +258,15 @@ api.get('/state/:name', async (c) => {
           })) || []
         }))
       }
-    });
+    }, 200);
   } catch (error) {
     console.error('Error in /state/:name:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// -----------------------------------------------------------------------------
-// 5. Endpoint adicional: Buscar por presencia dominante
-// -----------------------------------------------------------------------------
-api.get('/dominant-presence', async (c) => {
+// Dominant Presence
+api.openapi(dominantPresenceRoute, async (c) => {
   try {
     const dominantPresence = await db.query.regionalPresence.findMany({
       where: eq(regionalPresence.isDominant, true),
@@ -285,15 +287,32 @@ api.get('/dominant-presence', async (c) => {
       success: true,
       data: result,
       count: result.length
-    });
+    }, 200);
   } catch (error) {
     console.error('Error in /dominant-presence:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// Exportar tipo para Hono RPC
-export type AppType = typeof api;
+// -----------------------------------------------------------------------------
+// Documentación y Swagger UI
+// -----------------------------------------------------------------------------
+
+// Montamos la sub-app en el prefijo /api con todas sus rutas
+app.route('/api', api);
+
+// El JSON de la especificación
+app.doc('/api/doc', {
+  openapi: '3.0.0',
+  info: {
+    version: '1.0.0',
+    title: 'MXWatch API',
+    description: 'API de inteligencia geográfica y táctica de seguridad en México',
+  },
+});
+
+// La interfaz visual de Swagger
+app.get('/api/docs', swaggerUI({ url: '/api/doc' }));
 
 export default {
   port: 3001,
