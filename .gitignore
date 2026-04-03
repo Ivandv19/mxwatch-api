@@ -17,6 +17,7 @@ node_modules/
 
 # env
 .env
+.env.local
 .env.production
 .dev.vars
 
@@ -34,3 +35,8 @@ lerna-debug.log*
 
 # documentación privada
 /docs/
+
+# database dumps (privado)
+local_data_dump.json
+dump_local.ts
+src/db/seed.ts
