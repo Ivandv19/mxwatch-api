@@ -5,7 +5,8 @@
     "dev": "bun --hot run src/index.ts",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "db:seed": "bun run src/db/seed.ts"
   },
   "dependencies": {
     "@hono/swagger-ui": "^0.6.1",
