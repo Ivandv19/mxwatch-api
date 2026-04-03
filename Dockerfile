@@ -8,6 +8,9 @@ COPY package.json bun.lock ./
 # Instalamos dependencias usando el lockfile para consistencia
 RUN bun install --frozen-lockfile
 
+# Copiamos archivos de configuración necesarios para Drizzle y TS
+COPY drizzle.config.ts tsconfig.json ./
+
 # Copiamos el resto del código fuente del backend
 COPY src ./src
 
