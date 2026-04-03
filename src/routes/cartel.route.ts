@@ -1,11 +1,21 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { CartelSchema, FactionSchema, LeaderSchema, ArmedWingSchema, EconomySchema } from '../schemas/cartel';
+import { CartelSchema } from '../schemas/cartel';
 import { createSuccessSchema, ErrorSchema } from '../schemas/common';
 
+/**
+ * Endpoints: Catálogo e Inteligencia de Cárteles.
+ */
+
+// --- 1. LISTADO ---
+
+/** 
+ * Listar todas las organizaciones documentadas.
+ */
 export const listCartelsRoute = createRoute({
   method: 'get',
   path: '/cartels',
-  summary: 'List all cartels in the database',
+  summary: 'Listado General',
+  description: 'Catálogo completo de organizaciones criminales y sus metadatos.',
   responses: {
     200: {
       content: {
@@ -13,26 +23,29 @@ export const listCartelsRoute = createRoute({
           schema: createSuccessSchema(z.array(CartelSchema), 'ListCartelsResponse'),
         },
       },
-      description: 'The cartels have been successfully retrieved',
+      description: 'Éxito.',
     },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorSchema,
-        },
-      },
-      description: 'Database error',
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Error de base de datos.',
     },
   },
+  security: [{ apiKey: [] }],
 });
 
+// --- 2. DETALLE ---
+
+/** 
+ * Ficha técnica: Líderes, facciones y zonas de riesgo.
+ */
 export const getCartelBySlugRoute = createRoute({
   method: 'get',
   path: '/cartel/{slug}',
-  summary: 'Get details of a specific cartel by its slug',
+  summary: 'Ficha de Inteligencia',
+  description: 'Perfil detallado de una organización mediante su slug.',
   request: {
     params: z.object({
-      slug: z.string().openapi({ example: 'sinaloa' }),
+      slug: z.string().openapi({ example: 'cds' }),
     }),
   },
   responses: {
@@ -63,23 +76,16 @@ export const getCartelBySlugRoute = createRoute({
           }), 'CartelDetailResponse'),
         },
       },
-      description: 'The cartel has been successfully retrieved',
+      description: 'Éxito.',
     },
     404: {
-      content: {
-        'application/json': {
-          schema: ErrorSchema,
-        },
-      },
-      description: 'Cartel not found',
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'No encontrado.',
     },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorSchema,
-        },
-      },
-      description: 'Database error',
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Error interno.',
     },
   },
+  security: [{ apiKey: [] }],
 });

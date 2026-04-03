@@ -2,10 +2,24 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { MapStatePresenceSchema } from '../schemas/map';
 import { createSuccessSchema, ErrorSchema } from '../schemas/common';
 
+/**
+ * Endpoints de Sincronización de Cartografía.
+ */
+
+// -----------------------------------------------------------------------------
+// 1. CENSO GEOGRÁFICO
+// -----------------------------------------------------------------------------
+
+/**
+ * mapRoute: Data Completa del Mapa Nacional
+ * Proporciona un array condensado de todos los estados con sus carteles 
+ * dominantes, optimizado para la visualización táctica en el cliente.
+ */
 export const mapRoute = createRoute({
   method: 'get',
   path: '/map',
-  summary: 'Get all map data (states and their cartels)',
+  summary: 'Datos de Visualización Territorial (Mapa)',
+  description: 'Proporciona la lista de estados junto con la presencia de cárteles, optimizado para el renderizado del mapa interactivo.',
   responses: {
     200: {
       content: {
@@ -13,7 +27,7 @@ export const mapRoute = createRoute({
           schema: createSuccessSchema(z.array(MapStatePresenceSchema), 'MapResponse'),
         },
       },
-      description: 'The map data has been successfully retrieved',
+      description: 'Censo geográfico recuperado con éxito.',
     },
     500: {
       content: {
@@ -21,7 +35,8 @@ export const mapRoute = createRoute({
           schema: ErrorSchema,
         },
       },
-      description: 'Database error',
+      description: 'Error crítico en el motor de base de datos durante la consulta espacial.',
     },
   },
+  security: [{ apiKey: [] }],
 });
