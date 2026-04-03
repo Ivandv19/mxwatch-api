@@ -1,38 +1,53 @@
 import { config } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
 
-// Cargar variables de entorno según el entorno
+/**
+ * Carga de variables de entorno:
+ * En producción se priorizan las variables del sistema (Dokploy).
+ * En desarrollo se utiliza el archivo .env.local.
+ */
 const envFile = process.env.NODE_ENV === 'production' ? '.env' : '.env.local';
 config({ path: envFile });
 
-// Validar que DATABASE_URL existe
+// Validación crítica: La URL de la base de datos es obligatoria para cualquier operación de Drizzle
 if (!process.env.DATABASE_URL) {
-    throw new Error('❌ DATABASE_URL is not defined in environment variables');
+    throw new Error('❌ DATABASE_URL no definida en las variables de entorno. Verifica tu archivo .env o la configuración de Dokploy.');
 }
 
+/**
+ * Configuración maestra de Drizzle Kit:
+ * Define cómo se sincronizan los modelos de TypeScript con la base de datos PostgreSQL.
+ */
 export default defineConfig({
+    // Ruta al archivo donde se definen todas las entidades y tablas
     schema: './src/db/schema.ts',
+    
+    // Directorio donde se almacenan las migraciones generadas
     out: './drizzle',
+    
+    // Dialecto de base de datos (PostgreSQL en este caso)
     dialect: 'postgresql',
+    
+    // Credenciales de conexión
     dbCredentials: {
         url: process.env.DATABASE_URL,
     },
 
-    // Opciones adicionales útiles
-    verbose: true, // Muestra más información durante las migraciones
-    strict: true,  // Modo estricto para evitar errores comunes
+    // Configuración de visualización y seguridad
+    verbose: true, // Muestra el detalle de los cambios aplicados en la terminal
+    strict: true,  // Activa validaciones estrictas para prevenir pérdida accidental de datos
 
-    // Configuraciones opcionales para migraciones
+    // Configuración avanzada de migraciones
     migrations: {
-        table: '__drizzle_migrations', // Nombre personalizado para la tabla de migraciones
-        schema: 'public', // Esquema por defecto en PostgreSQL
+        table: '__drizzle_migrations', // Nombre de la tabla de control interno de Drizzle
+        schema: 'public',              // Esquema por defecto en Postgres
     },
-
-    // Opcional: filtrar tablas si necesitas excluir alguna
-    // tablesFilter: ['!__drizzle_migrations'],
 });
 
-// También puedes exportar configuración adicional para seed data
+/**
+ * Configuración opcional para seeding:
+ * Permite poblar la base de datos con datos iniciales para pruebas o despliegue inicial.
+ */
 export const seedConfig = {
     connectionString: process.env.DATABASE_URL,
     seed: './src/db/seed.ts',
