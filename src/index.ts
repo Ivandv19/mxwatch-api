@@ -6,49 +6,56 @@ import { eq } from 'drizzle-orm';
 import { db, healthCheck } from './db';
 import { cartels, states, regionalPresence } from './db/schema';
 
-// Rutas OpenAPI
+// Rutas e Infraestructura
 import { healthRoute } from './routes/health.route';
 import { mapRoute } from './routes/map.route';
 import { listCartelsRoute, getCartelBySlugRoute } from './routes/cartel.route';
 import { getStateByNameRoute } from './routes/state.route';
 import { dominantPresenceRoute } from './routes/dominant.route';
+import { authMiddleware } from './middleware/auth';
 
-// Instancia principal y sub-app para la API
+/**
+ * MXWATCH API: Núcleo Hono con OpenAPI.
+ */
+
 const app = new OpenAPIHono();
 const api = new OpenAPIHono();
 
-// Middlewares globales
+// --- Middleware Global ---
+
 app.use('*', logger());
+
 app.use(
   '/*',
   cors({
-    origin: ['https://mxwatch.mgdc.site', 'http://localhost:3000'],
+    origin: [
+      'https://mxwatch.mgdc.site',
+      'https://mxwatch.fluxdv.icu',
+      'https://mxwatch-api.fluxdv.icu',
+      'http://localhost:3000',
+      'http://localhost:3001'
+    ],
   })
 );
 
-// -----------------------------------------------------------------------------
-// Registro de Rutas con OpenAPI
-// -----------------------------------------------------------------------------
-
-// Health Check
-api.openapi(healthRoute, async (c) => {
-  const isHealthy = await healthCheck();
-  if (!isHealthy) {
-    return c.json({
-      success: false,
-      error: 'Database connection failed',
-    }, 503);
-  }
-  return c.json({
-    success: true,
-    data: {
-      status: 'healthy',
-      timestamp: new Date().toISOString()
-    }
-  }, 200);
+/**
+ * Auth Middleware (Fail-Closed).
+ * Protege /api/* excepto rutas públicas (health/docs).
+ */
+api.use('*', async (c, next) => {
+  const publicRoutes = ['/api/health', '/api/docs', '/api/doc'];
+  if (publicRoutes.includes(c.req.path)) return await next();
+  return await authMiddleware(c, next);
 });
 
-// Map Data
+// --- Handlers de Rutas ---
+
+api.openapi(healthRoute, async (c) => {
+  const isHealthy = await healthCheck();
+  if (!isHealthy) return c.json({ success: false, error: 'DB Connection failed' }, 503);
+  return c.json({ success: true, data: { status: 'healthy', timestamp: new Date().toISOString() } }, 200);
+});
+
 api.openapi(mapRoute, async (c) => {
   try {
     const presenceRecords = await db.query.states.findMany({
@@ -73,52 +80,34 @@ api.openapi(mapRoute, async (c) => {
       }))
     }));
 
-    return c.json({
-      success: true,
-      data: result,
-      timestamp: new Date().toISOString()
-    }, 200);
+    return c.json({ success: true, data: result, timestamp: new Date().toISOString() }, 200);
   } catch (error) {
-    console.error('Error in /map:', error);
-    return c.json({
-      success: false,
-      error: 'Database error',
-      details: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    }, 500);
+    return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// List Cartels
 api.openapi(listCartelsRoute, async (c) => {
   try {
     const allCartels = await db.query.cartels.findMany({
       orderBy: (cartels, { asc }) => [asc(cartels.name)]
     });
-
     return c.json({
       success: true,
       data: allCartels.map(cr => ({
-        id: cr.id,
-        name: cr.name,
-        slug: cr.slug,
-        color: cr.color,
-        globalStatus: cr.globalStatus,
-        foreignDesignation: cr.foreignDesignation,
+        id: cr.id, name: cr.name, slug: cr.slug, color: cr.color,
+        globalStatus: cr.globalStatus, foreignDesignation: cr.foreignDesignation,
         fifaRiskLevel: cr.fifaRiskLevel
       })),
       count: allCartels.length
     }, 200);
   } catch (error) {
-    console.error('Error in /cartels:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// Get Cartel By Slug
 api.openapi(getCartelBySlugRoute, async (c) => {
   try {
     const { slug } = c.req.valid('param');
-
     const cartelRecord = await db.query.cartels.findFirst({
       where: eq(cartels.slug, slug),
       with: {
@@ -134,55 +123,29 @@ api.openapi(getCartelBySlugRoute, async (c) => {
       }
     });
 
-    if (!cartelRecord) {
-      return c.json({ success: false, error: 'Cartel not found' }, 404);
-    }
+    if (!cartelRecord) return c.json({ success: false, error: 'Cartel not found' }, 404);
 
-    const uniqueFactions = new Map<any, any>();
-    const uniqueLeaders = new Map<any, any>();
-    const uniqueArmedWings = new Map<any, any>();
-    const uniqueEconomies = new Map<any, any>();
+    const uniqueFactions = new Map();
+    const uniqueLeaders = new Map();
+    const uniqueArmedWings = new Map();
+    const uniqueEconomies = new Map();
     const statePresence: any[] = [];
 
     cartelRecord.presences.forEach((presence: any) => {
-      statePresence.push({
-        state: presence.state.name,
-        isDominant: presence.isDominant,
-        note: presence.localIntelligenceNote
-      });
-
-      presence.factions.forEach((pf: any) => {
-        uniqueFactions.set(pf.faction.id, { name: pf.faction.name, focus: pf.faction.focus });
-      });
-
-      presence.leaders.forEach((pl: any) => {
-        uniqueLeaders.set(pl.leader.id, { name: pl.leader.name, alias: pl.leader.alias });
-      });
-
-      presence.armedWings?.forEach((aw: any) => {
-        uniqueArmedWings.set(aw.armedWing.id, { name: aw.armedWing.name });
-      });
-
-      presence.economies?.forEach((pe: any) => {
-        uniqueEconomies.set(pe.economy.id, { name: pe.economy.name });
-      });
+      statePresence.push({ state: presence.state.name, isDominant: presence.isDominant, note: presence.localIntelligenceNote });
+      presence.factions.forEach((pf: any) => uniqueFactions.set(pf.faction.id, { name: pf.faction.name, focus: pf.faction.focus }));
+      presence.leaders.forEach((pl: any) => uniqueLeaders.set(pl.leader.id, { name: pl.leader.name, alias: pl.leader.alias }));
+      presence.armedWings?.forEach((aw: any) => uniqueArmedWings.set(aw.armedWing.id, { name: aw.armedWing.name }));
+      presence.economies?.forEach((pe: any) => uniqueEconomies.set(pe.economy.id, { name: pe.economy.name }));
     });
 
     return c.json({
       success: true,
       data: {
-        id: cartelRecord.id,
-        name: cartelRecord.name,
-        slug: cartelRecord.slug,
-        color: cartelRecord.color,
-        globalStatus: cartelRecord.globalStatus,
-        foreignDesignation: cartelRecord.foreignDesignation,
+        id: cartelRecord.id, name: cartelRecord.name, slug: cartelRecord.slug, color: cartelRecord.color,
+        globalStatus: cartelRecord.globalStatus, foreignDesignation: cartelRecord.foreignDesignation,
         fifaRiskLevel: cartelRecord.fifaRiskLevel,
-        presence: {
-          states: statePresence,
-          totalStates: statePresence.length,
-          dominantStates: statePresence.filter(s => s.isDominant).length
-        },
+        presence: { states: statePresence, totalStates: statePresence.length, dominantStates: statePresence.filter(s => s.isDominant).length },
         factions: Array.from(uniqueFactions.values()),
         leaders: Array.from(uniqueLeaders.values()),
         armedWings: Array.from(uniqueArmedWings.values()),
@@ -190,17 +153,14 @@ api.openapi(getCartelBySlugRoute, async (c) => {
       }
     }, 200);
   } catch (error) {
-    console.error('Error in /cartel/:slug:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// Get State Intelligence
 api.openapi(getStateByNameRoute, async (c) => {
   try {
     const { name } = c.req.valid('param');
     const stateName = decodeURIComponent(name);
-
     const stateRecord = await db.query.states.findFirst({
       where: eq(states.name, stateName),
       with: {
@@ -217,9 +177,7 @@ api.openapi(getStateByNameRoute, async (c) => {
       }
     });
 
-    if (!stateRecord) {
-      return c.json({ success: false, error: 'State not found' }, 404);
-    }
+    if (!stateRecord) return c.json({ success: false, error: 'State not found' }, 404);
 
     return c.json({
       success: true,
@@ -229,92 +187,49 @@ api.openapi(getStateByNameRoute, async (c) => {
         totalCartels: stateRecord.presences.length,
         dominantCartels: stateRecord.presences.filter(p => p.isDominant).length,
         cartels: stateRecord.presences.map((p) => ({
-          id: p.cartel.id,
-          name: p.cartel.name,
-          slug: p.cartel.slug,
-          color: p.cartel.color,
-          isDominant: p.isDominant,
-          localIntelligenceNote: p.localIntelligenceNote,
-          globalStatus: p.cartel.globalStatus,
-          foreignDesignation: p.cartel.foreignDesignation,
+          id: p.cartel.id, name: p.cartel.name, slug: p.cartel.slug, color: p.cartel.color,
+          isDominant: p.isDominant, localIntelligenceNote: p.localIntelligenceNote,
+          globalStatus: p.cartel.globalStatus, foreignDesignation: p.cartel.foreignDesignation,
           fifaRiskLevel: p.cartel.fifaRiskLevel,
-          factions: p.factions.map((f) => ({
-            id: f.faction.id,
-            name: f.faction.name,
-            focus: f.faction.focus
-          })),
-          leaders: p.leaders.map((l) => ({
-            id: l.leader.id,
-            name: l.leader.name,
-            alias: l.leader.alias
-          })),
-          armedWings: p.armedWings?.map((aw) => ({
-            id: aw.armedWing.id,
-            name: aw.armedWing.name
-          })) || [],
-          economicActivities: p.economies?.map((e) => ({
-            id: e.economy.id,
-            name: e.economy.name
-          })) || []
+          factions: p.factions.map((f) => ({ id: f.faction.id, name: f.faction.name, focus: f.faction.focus })),
+          leaders: p.leaders.map((l) => ({ id: l.leader.id, name: l.leader.name, alias: l.leader.alias })),
+          armedWings: p.armedWings?.map((aw) => ({ id: aw.armedWing.id, name: aw.armedWing.name })) || [],
+          economicActivities: p.economies?.map((e) => ({ id: e.economy.id, name: e.economy.name })) || []
         }))
       }
     }, 200);
   } catch (error) {
-    console.error('Error in /state/:name:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// Dominant Presence
 api.openapi(dominantPresenceRoute, async (c) => {
   try {
     const dominantPresence = await db.query.regionalPresence.findMany({
       where: eq(regionalPresence.isDominant, true),
-      with: {
-        state: true,
-        cartel: true
-      },
+      with: { state: true, cartel: true },
       orderBy: (presence, { asc }) => [asc(presence.stateId)]
     });
-
-    const result = dominantPresence.map((p) => ({
-      state: p.state.name,
-      cartel: p.cartel.name,
-      cartelColor: p.cartel.color
-    }));
-
-    return c.json({
-      success: true,
-      data: result,
-      count: result.length
-    }, 200);
+    const result = dominantPresence.map((p) => ({ state: p.state.name, cartel: p.cartel.name, cartelColor: p.cartel.color }));
+    return c.json({ success: true, data: result, count: result.length }, 200);
   } catch (error) {
-    console.error('Error in /dominant-presence:', error);
     return c.json({ success: false, error: 'Database error' }, 500);
   }
 });
 
-// -----------------------------------------------------------------------------
-// Documentación y Swagger UI
-// -----------------------------------------------------------------------------
+// --- Documentación OpenAPI ---
 
-// Montamos la sub-app en el prefijo /api con todas sus rutas
-app.route('/api', api);
-
-// El JSON de la especificación
-app.doc('/api/doc', {
-  openapi: '3.0.0',
-  info: {
-    version: '1.0.0',
-    title: 'MXWatch API',
-    description: 'API de inteligencia geográfica y táctica de seguridad en México',
-  },
+app.openAPIRegistry.registerComponent('securitySchemes', 'apiKey', {
+  type: 'apiKey', name: 'x-api-key', in: 'header', description: 'Introduce tu API Key.',
 });
 
-// La interfaz visual de Swagger
+app.route('/api', api);
+
+app.doc('/api/doc', {
+  openapi: '3.0.0',
+  info: { version: '1.0.0', title: 'MXWatch API', description: 'API de inteligencia táctica.' },
+});
+
 app.get('/api/docs', swaggerUI({ url: '/api/doc' }));
 
-export default {
-  port: 3001,
-  fetch: app.fetch,
-};
+export default { port: 3001, fetch: app.fetch };
