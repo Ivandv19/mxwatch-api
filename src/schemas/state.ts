@@ -1,25 +1,46 @@
 import { z } from '@hono/zod-openapi';
-import { CartelSchema, FactionSchema, LeaderSchema, ArmedWingSchema, EconomySchema } from './cartel';
+import { ArmedWingSchema, EconomySchema, FactionSchema, LeaderSchema } from './cartel';
 
-export const StateSchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string().openapi({ example: 'Tamaulipas' }),
-  slug: z.string().openapi({ example: 'tamaulipas' }),
-}).openapi('State');
+/**
+ * Esquemas para la Inteligencia Geográfica Táctica.
+ */
 
-export const StateCartelPresenceSchema = CartelSchema.extend({
+// -----------------------------------------------------------------------------
+// 1. INTELIGENCIA REGIONAL
+// -----------------------------------------------------------------------------
+
+/**
+ * CartelInStateSchema: Perfil Local de Organización.
+ * Incluye datos específicos de la operación regional de un cártel dentro de un estado.
+ */
+export const CartelInStateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().openapi({ example: 'Cártel Jalisco Nueva Generación' }),
+  slug: z.string().openapi({ example: 'cjng' }),
+  color: z.string().openapi({ example: '#EE0000' }),
   isDominant: z.boolean().openapi({ example: true }),
-  localIntelligenceNote: z.string().nullable().openapi({ example: 'Disputando la garita con CDN' }),
+  localIntelligenceNote: z.string().nullable().openapi({ example: 'Control hegemónico de rutas logísticas.' }),
+  globalStatus: z.string().nullable(),
+  foreignDesignation: z.string().nullable(),
+  fifaRiskLevel: z.string().nullable(),
   factions: z.array(FactionSchema),
   leaders: z.array(LeaderSchema),
-  armedWings: z.array(ArmedWingSchema),
-  economicActivities: z.array(EconomySchema),
-}).openapi('StateCartelPresence');
+  armedWings: z.array(ArmedWingSchema).optional(),
+  economicActivities: z.array(EconomySchema).optional(),
+});
 
+// -----------------------------------------------------------------------------
+// 2. RESPUESTA TÁCTICA ESTATAL
+// -----------------------------------------------------------------------------
+
+/**
+ * StateDetailsResponseSchema: Panorama de Seguridad por Entidad.
+ * Resume la situación operativa y de control de un estado completo.
+ */
 export const StateDetailsResponseSchema = z.object({
-  stateName: z.string().openapi({ example: 'Tamaulipas' }),
-  stateSlug: z.string().openapi({ example: 'tamaulipas' }),
-  totalCartels: z.number().openapi({ example: 4 }),
+  stateName: z.string().openapi({ example: 'Colima' }),
+  stateSlug: z.string().openapi({ example: 'colima' }),
+  totalCartels: z.number().openapi({ example: 2 }),
   dominantCartels: z.number().openapi({ example: 1 }),
-  cartels: z.array(StateCartelPresenceSchema),
+  cartels: z.array(CartelInStateSchema),
 }).openapi('StateDetailsResponse');
