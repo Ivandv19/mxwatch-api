@@ -40,3 +40,4 @@ lerna-debug.log*
 local_data_dump.json
 dump_local.ts
 src/db/seed.ts
+.codegraph/

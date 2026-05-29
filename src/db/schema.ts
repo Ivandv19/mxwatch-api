@@ -5,35 +5,11 @@ import {
 	pgEnum,
 	pgTable,
 	primaryKey,
-	text,
 	timestamp,
 	uuid,
 	varchar,
 } from "drizzle-orm/pg-core";
 
-/**
- * ESQUEMA DE BASE DE DATOS - mxwatch-api
- * Define la estructura de tablas relacionales para el monitoreo de seguridad.
- * Utiliza Drizzle ORM con tipado estricto para PostgreSQL.
- */
-
-// -----------------------------------------------------------------------------
-// 0. DEFINICIÓN DE ENUMS Y HELPERS
-// -----------------------------------------------------------------------------
-
-/**
- * severityEnum: Clasificación de riesgo/gravedad para incidentes.
- */
-export const severityEnum = pgEnum("severity", [
-	"low",
-	"medium",
-	"high",
-	"critical",
-]);
-
-/**
- * timestamps: Helper reutilizable para columnas de auditoría cronológica.
- */
 const timestamps = {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at")
@@ -42,444 +18,400 @@ const timestamps = {
 		.$onUpdate(() => new Date()),
 };
 
-// -----------------------------------------------------------------------------
-// 1. TABLAS DE CATÁLOGOS BASE (ENTIDADES MAESTRAS)
-// -----------------------------------------------------------------------------
+export const severityEnum = pgEnum("severity", [
+	"low",
+	"medium",
+	"high",
+	"critical",
+]);
 
-/**
- * states: División territorial (Estados de México).
- * Conecta los registros con la geometría de TopoJSON mediante el 'slug'.
- */
-export const states = pgTable(
-	"states",
+// ---------------------------------------------------------------------------
+// 1. CATÁLOGOS MAESTROS
+// ---------------------------------------------------------------------------
+
+export const carteles = pgTable(
+	"carteles",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
-		name: varchar("name", { length: 255 }).notNull().unique(), // Nombre amigable
-		slug: varchar("slug", { length: 255 }).notNull().unique(), // Key para el mapa (ej. "sinaloa")
-		...timestamps,
-	},
-	(table) => ({
-		slugIdx: index("states_slug_idx").on(table.slug),
-		nameIdx: index("states_name_idx").on(table.name),
-	}),
-);
-
-/**
- * cartels: Organizaciones delictivas documentadas.
- * Almacena metadatos globales como color en el mapa y nivel de riesgo internacional.
- */
-export const cartels = pgTable(
-	"cartels",
-	{
-		id: uuid("id").defaultRandom().primaryKey(),
-		name: varchar("name", { length: 255 }).notNull().unique(),
+		nombre: varchar("nombre", { length: 255 }).notNull().unique(),
 		slug: varchar("slug", { length: 255 }).notNull().unique(),
-		color: varchar("color", { length: 50 }).notNull(), // Asignación visual en el mapa
-		globalStatus: varchar("global_status", { length: 255 }), // Estatus operativo actual
-		foreignDesignation: varchar("foreign_designation", { length: 255 }), // Designación por agencias externas (OFAC, DEA)
-		fifaRiskLevel: varchar("fifa_risk_level", { length: 100 }), // Riesgo de seguridad en contexto internacional
+		color: varchar("color", { length: 50 }).notNull(),
 		...timestamps,
 	},
 	(table) => ({
-		slugIdx: index("cartels_slug_idx").on(table.slug),
-		nameIdx: index("cartels_name_idx").on(table.name),
+		slugIdx: index("carteles_slug_idx").on(table.slug),
+		nombreIdx: index("carteles_nombre_idx").on(table.nombre),
 	}),
 );
 
-/**
- * factions: Células o facciones específicas operando bajo el mando de un cártel mayor.
- */
-export const factions = pgTable(
-	"factions",
+export const estados = pgTable(
+	"estados",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
-		name: varchar("name", { length: 255 }).notNull().unique(),
-		focus: varchar("focus", { length: 255 }), // Área de especialización delictiva o territorial
+		nombre: varchar("nombre", { length: 255 }).notNull().unique(),
+		slug: varchar("slug", { length: 255 }).notNull().unique(),
 		...timestamps,
 	},
 	(table) => ({
-		nameIdx: index("factions_name_idx").on(table.name),
+		slugIdx: index("estados_slug_idx").on(table.slug),
+		nombreIdx: index("estados_nombre_idx").on(table.nombre),
 	}),
 );
 
-/**
- * armedWings: Grupos de sicarios o brazos armados con identidad propia.
- */
-export const armedWings = pgTable(
-	"armed_wings",
+export const personas = pgTable(
+	"personas",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
-		name: varchar("name", { length: 255 }).notNull().unique(),
-		...timestamps,
-	},
-	(table) => ({
-		nameIdx: index("armed_wings_name_idx").on(table.name),
-	}),
-);
-
-/**
- * leaders: Personajes clave identificados en la estructura criminal.
- */
-export const leaders = pgTable(
-	"leaders",
-	{
-		id: uuid("id").defaultRandom().primaryKey(),
-		name: varchar("name", { length: 255 }).notNull(),
-		alias: varchar("alias", { length: 255 }), // Apodo o nombre clave operativo
-		...timestamps,
-	},
-	(table) => ({
-		nameIdx: index("leaders_name_idx").on(table.name),
-		aliasIdx: index("leaders_alias_idx").on(table.alias),
-	}),
-);
-
-/**
- * alliances: Coaliciones o frentes compartidos entre múltiples cárteles.
- */
-export const alliances = pgTable(
-	"alliances",
-	{
-		id: uuid("id").defaultRandom().primaryKey(),
-		name: varchar("name", { length: 255 }).notNull().unique(),
-		...timestamps,
-	},
-	(table) => ({
-		nameIdx: index("alliances_name_idx").on(table.name),
-	}),
-);
-
-/**
- * economicActivities: Mercados ilícitos o lícitos controlados por las organizaciones.
- */
-export const economicActivities = pgTable(
-	"economic_activities",
-	{
-		id: uuid("id").defaultRandom().primaryKey(),
-		name: varchar("name", { length: 255 }).notNull().unique(), // Ej: "Extorsión al sector aguacatero"
-		...timestamps,
-	},
-	(table) => ({
-		nameIdx: index("economic_activities_name_idx").on(table.name),
-	}),
-);
-
-// -----------------------------------------------------------------------------
-// 2. TABLA CENTRAL DE PRESENCIA TERRITORIAL (NÚCLEO DE LA PLATAFORMA)
-// -----------------------------------------------------------------------------
-
-/**
- * regionalPresence: Punto de unión entre Estados y Cárteles.
- * Define quién tiene el control, si hay disputa y notas tácticas de inteligencia local.
- */
-export const regionalPresence = pgTable(
-	"regional_presence",
-	{
-		id: uuid("id").defaultRandom().primaryKey(),
-		stateId: uuid("state_id")
-			.notNull()
-			.references(() => states.id, { onDelete: "cascade" }),
-		cartelId: uuid("cartel_id")
-			.notNull()
-			.references(() => cartels.id, { onDelete: "cascade" }),
-		allianceId: uuid("alliance_id").references(() => alliances.id, {
+		nombre: varchar("nombre", { length: 255 }).notNull(),
+		alias: varchar("alias", { length: 255 }),
+		esJefe: boolean("es_jefe").default(false).notNull(),
+		cartelId: uuid("cartel_id").references(() => carteles.id, {
 			onDelete: "set null",
 		}),
-		isDominant: boolean("is_dominant").default(false).notNull(), // Control hegemónico vs presencia en disputa
-		localIntelligenceNote: text("local_intelligence_note"), // Observaciones tácticas actualizadas
 		...timestamps,
 	},
 	(table) => ({
-		stateIdx: index("regional_presence_state_idx").on(table.stateId),
-		cartelIdx: index("regional_presence_cartel_idx").on(table.cartelId),
-		allianceIdx: index("regional_presence_alliance_idx").on(table.allianceId),
-		dominantIdx: index("regional_presence_dominant_idx").on(table.isDominant),
-		stateCartelIdx: index("regional_presence_state_cartel_idx").on(
-			table.stateId,
-			table.cartelId,
-		),
+		nombreIdx: index("personas_nombre_idx").on(table.nombre),
+		aliasIdx: index("personas_alias_idx").on(table.alias),
+		cartelIdx: index("personas_cartel_idx").on(table.cartelId),
+		jefeIdx: index("personas_jefe_idx").on(table.esJefe),
 	}),
 );
 
-// -----------------------------------------------------------------------------
-// 3. TABLAS PIVOTE (RELACIONES MUCHOS-A-MUCHOS)
-// -----------------------------------------------------------------------------
-
-/**
- * presenceFactions: Vincula facciones específicas con la presencia de un cártel en un estado.
- */
-export const presenceFactions = pgTable(
-	"presence_factions",
-	{
-		presenceId: uuid("presence_id")
-			.notNull()
-			.references(() => regionalPresence.id, { onDelete: "cascade" }),
-		factionId: uuid("faction_id")
-			.notNull()
-			.references(() => factions.id, { onDelete: "cascade" }),
-		...timestamps,
-	},
-	(t) => ({
-		pk: primaryKey({ columns: [t.presenceId, t.factionId] }),
-		factionIdx: index("presence_factions_faction_idx").on(t.factionId),
-	}),
-);
-
-/**
- * presenceArmedWings: Grupos de choque vinculados a una zona de operación.
- */
-export const presenceArmedWings = pgTable(
-	"presence_armed_wings",
-	{
-		presenceId: uuid("presence_id")
-			.notNull()
-			.references(() => regionalPresence.id, { onDelete: "cascade" }),
-		armedWingId: uuid("armed_wing_id")
-			.notNull()
-			.references(() => armedWings.id, { onDelete: "cascade" }),
-		...timestamps,
-	},
-	(t) => ({
-		pk: primaryKey({ columns: [t.presenceId, t.armedWingId] }),
-		armedWingIdx: index("presence_armed_wings_wing_idx").on(t.armedWingId),
-	}),
-);
-
-/**
- * presenceLeaders: Estructura de mando identificada operando en la región.
- */
-export const presenceLeaders = pgTable(
-	"presence_leaders",
-	{
-		presenceId: uuid("presence_id")
-			.notNull()
-			.references(() => regionalPresence.id, { onDelete: "cascade" }),
-		leaderId: uuid("leader_id")
-			.notNull()
-			.references(() => leaders.id, { onDelete: "cascade" }),
-		...timestamps,
-	},
-	(t) => ({
-		pk: primaryKey({ columns: [t.presenceId, t.leaderId] }),
-		leaderIdx: index("presence_leaders_leader_idx").on(t.leaderId),
-	}),
-);
-
-/**
- * presenceEconomies: Detalle de economías ilícitas controladas regionalmente.
- */
-export const presenceEconomies = pgTable(
-	"presence_economies",
-	{
-		presenceId: uuid("presence_id")
-			.notNull()
-			.references(() => regionalPresence.id, { onDelete: "cascade" }),
-		economyId: uuid("economy_id")
-			.notNull()
-			.references(() => economicActivities.id, { onDelete: "cascade" }),
-		...timestamps,
-	},
-	(t) => ({
-		pk: primaryKey({ columns: [t.presenceId, t.economyId] }),
-		economyIdx: index("presence_economies_economy_idx").on(t.economyId),
-	}),
-);
-
-// -----------------------------------------------------------------------------
-// 4. TABLAS DE EVENTOS OPERATIVOS (CARACTERÍSTICAS FUTURAS)
-// -----------------------------------------------------------------------------
-
-/**
- * incidents: Reportes tácticos de incidentes de seguridad individuales.
- */
-export const incidents = pgTable(
-	"incidents",
+export const facciones = pgTable(
+	"facciones",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
-		title: varchar("title", { length: 255 }).notNull(),
-		description: text("description").notNull(),
-		severity: severityEnum("severity").notNull(),
-		stateId: uuid("state_id")
+		nombre: varchar("nombre", { length: 255 }).notNull().unique(),
+		enfoque: varchar("enfoque", { length: 255 }),
+		cartelId: uuid("cartel_id")
 			.notNull()
-			.references(() => states.id, { onDelete: "cascade" }),
-		date: timestamp("date").defaultNow().notNull(),
+			.references(() => carteles.id, { onDelete: "cascade" }),
 		...timestamps,
 	},
 	(table) => ({
-		stateIdx: index("incidents_state_idx").on(table.stateId),
-		severityIdx: index("incidents_severity_idx").on(table.severity),
-		dateIdx: index("incidents_date_idx").on(table.date),
-		stateDateIdx: index("incidents_state_date_idx").on(
-			table.stateId,
-			table.date,
+		nombreIdx: index("facciones_nombre_idx").on(table.nombre),
+		cartelIdx: index("facciones_cartel_idx").on(table.cartelId),
+	}),
+);
+
+export const brazosArmados = pgTable(
+	"brazos_armados",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		nombre: varchar("nombre", { length: 255 }).notNull().unique(),
+		cartelId: uuid("cartel_id")
+			.notNull()
+			.references(() => carteles.id, { onDelete: "cascade" }),
+		...timestamps,
+	},
+	(table) => ({
+		nombreIdx: index("brazos_armados_nombre_idx").on(table.nombre),
+		cartelIdx: index("brazos_armados_cartel_idx").on(table.cartelId),
+	}),
+);
+
+export const actividadesEconomicas = pgTable(
+	"actividades_economicas",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		nombre: varchar("nombre", { length: 255 }).notNull().unique(),
+		...timestamps,
+	},
+	(table) => ({
+		nombreIdx: index("actividades_economicas_nombre_idx").on(table.nombre),
+	}),
+);
+
+// ---------------------------------------------------------------------------
+// 2. NÚCLEO — PRESENCIAS
+// ---------------------------------------------------------------------------
+
+export const presencias = pgTable(
+	"presencias",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		cartelId: uuid("cartel_id")
+			.notNull()
+			.references(() => carteles.id, { onDelete: "cascade" }),
+		estadoId: uuid("estado_id")
+			.notNull()
+			.references(() => estados.id, { onDelete: "cascade" }),
+		...timestamps,
+	},
+	(table) => ({
+		cartelIdx: index("presencias_cartel_idx").on(table.cartelId),
+		estadoIdx: index("presencias_estado_idx").on(table.estadoId),
+		cartelEstadoUniq: index("presencias_cartel_estado_idx").on(
+			table.cartelId,
+			table.estadoId,
 		),
 	}),
 );
 
-/**
- * incidentCartels: Relación de cárteles involucrados en un incidente específico.
- */
-export const incidentCartels = pgTable(
-	"incident_cartels",
+// ---------------------------------------------------------------------------
+// 3. PIVOTES
+// ---------------------------------------------------------------------------
+
+export const operadoresLocales = pgTable(
+	"operadores_locales",
 	{
-		incidentId: uuid("incident_id")
+		presenciaId: uuid("presencia_id")
 			.notNull()
-			.references(() => incidents.id, { onDelete: "cascade" }),
-		cartelId: uuid("cartel_id")
+			.references(() => presencias.id, { onDelete: "cascade" }),
+		personaId: uuid("persona_id")
 			.notNull()
-			.references(() => cartels.id, { onDelete: "cascade" }),
+			.references(() => personas.id, { onDelete: "cascade" }),
 		...timestamps,
 	},
 	(t) => ({
-		pk: primaryKey({ columns: [t.incidentId, t.cartelId] }),
-		cartelIdx: index("incident_cartels_cartel_idx").on(t.cartelId),
-		incidentIdx: index("incident_cartels_incident_idx").on(t.incidentId),
+		pk: primaryKey({ columns: [t.presenciaId, t.personaId] }),
+		personaIdx: index("operadores_locales_persona_idx").on(t.personaId),
 	}),
 );
 
-// -----------------------------------------------------------------------------
-// 5. CONFIGURACIÓN DE RELACIONES DRIZZLE (FACILITA CONSULTAS ANIDADAS)
-// -----------------------------------------------------------------------------
+export const presenciasFacciones = pgTable(
+	"presencias_facciones",
+	{
+		presenciaId: uuid("presencia_id")
+			.notNull()
+			.references(() => presencias.id, { onDelete: "cascade" }),
+		faccionId: uuid("faccion_id")
+			.notNull()
+			.references(() => facciones.id, { onDelete: "cascade" }),
+		...timestamps,
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.presenciaId, t.faccionId] }),
+		faccionIdx: index("presencias_facciones_faccion_idx").on(t.faccionId),
+	}),
+);
 
-/**
- * Configuración de relaciones para la tabla central de presencia regional.
- */
-export const regionalPresenceRelations = relations(
-	regionalPresence,
+export const presenciasBrazosArmados = pgTable(
+	"presencias_brazos_armados",
+	{
+		presenciaId: uuid("presencia_id")
+			.notNull()
+			.references(() => presencias.id, { onDelete: "cascade" }),
+		brazoArmadoId: uuid("brazo_armado_id")
+			.notNull()
+			.references(() => brazosArmados.id, { onDelete: "cascade" }),
+		...timestamps,
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.presenciaId, t.brazoArmadoId] }),
+		brazoIdx: index("presencias_brazos_armados_brazo_idx").on(t.brazoArmadoId),
+	}),
+);
+
+// ---------------------------------------------------------------------------
+// 4. POLIMÓRFICAS (FLEXIBLES)
+// ---------------------------------------------------------------------------
+
+export const alianzas = pgTable(
+	"alianzas",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		nombre: varchar("nombre", { length: 255 }),
+		estadoId: uuid("estado_id")
+			.notNull()
+			.references(() => estados.id, { onDelete: "cascade" }),
+		...timestamps,
+	},
+	(table) => ({
+		estadoIdx: index("alianzas_estado_idx").on(table.estadoId),
+	}),
+);
+
+export const participantesAlianza = pgTable(
+	"participantes_alianza",
+	{
+		alianzaId: uuid("alianza_id")
+			.notNull()
+			.references(() => alianzas.id, { onDelete: "cascade" }),
+		entidadTipo: varchar("entidad_tipo", { length: 50 }).notNull(),
+		entidadId: uuid("entidad_id").notNull(),
+		...timestamps,
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.alianzaId, t.entidadTipo, t.entidadId] }),
+		alianzaIdx: index("participantes_alianza_alianza_idx").on(t.alianzaId),
+		tipoIdx: index("participantes_alianza_tipo_idx").on(t.entidadTipo),
+	}),
+);
+
+export const entidadesActividades = pgTable(
+	"entidades_actividades",
+	{
+		actividadId: uuid("actividad_id")
+			.notNull()
+			.references(() => actividadesEconomicas.id, { onDelete: "cascade" }),
+		entidadTipo: varchar("entidad_tipo", { length: 50 }).notNull(),
+		entidadId: uuid("entidad_id").notNull(),
+		...timestamps,
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.actividadId, t.entidadTipo, t.entidadId] }),
+		actividadIdx: index("entidades_actividades_actividad_idx").on(
+			t.actividadId,
+		),
+		tipoIdx: index("entidades_actividades_tipo_idx").on(t.entidadTipo),
+	}),
+);
+
+// ---------------------------------------------------------------------------
+// 5. INCIDENTES (v2)
+// ---------------------------------------------------------------------------
+
+export const incidentes = pgTable(
+	"incidentes",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		titulo: varchar("titulo", { length: 255 }).notNull(),
+		descripcion: varchar("descripcion", { length: 1000 }).notNull(),
+		severidad: severityEnum("severidad").notNull(),
+		fecha: timestamp("fecha").defaultNow().notNull(),
+		estadoId: uuid("estado_id")
+			.notNull()
+			.references(() => estados.id, { onDelete: "cascade" }),
+		...timestamps,
+	},
+	(table) => ({
+		estadoIdx: index("incidentes_estado_idx").on(table.estadoId),
+		severidadIdx: index("incidentes_severidad_idx").on(table.severidad),
+		fechaIdx: index("incidentes_fecha_idx").on(table.fecha),
+	}),
+);
+
+// ---------------------------------------------------------------------------
+// 6. RELACIONES
+// ---------------------------------------------------------------------------
+
+// --- CARTELES ---
+
+export const cartelesRelations = relations(carteles, ({ many }) => ({
+	presencias: many(presencias),
+	personas: many(personas),
+	facciones: many(facciones),
+	brazosArmados: many(brazosArmados),
+}));
+
+// --- ESTADOS ---
+
+export const estadosRelations = relations(estados, ({ many }) => ({
+	presencias: many(presencias),
+	alianzas: many(alianzas),
+	incidentes: many(incidentes),
+}));
+
+// --- PERSONAS ---
+
+export const personasRelations = relations(personas, ({ one, many }) => ({
+	cartel: one(carteles, {
+		fields: [personas.cartelId],
+		references: [carteles.id],
+	}),
+	operadores: many(operadoresLocales),
+}));
+
+// --- FACCIONES ---
+
+export const faccionesRelations = relations(facciones, ({ one, many }) => ({
+	cartel: one(carteles, {
+		fields: [facciones.cartelId],
+		references: [carteles.id],
+	}),
+	presencias: many(presenciasFacciones),
+}));
+
+// --- BRAZOS ARMADOS ---
+
+export const brazosArmadosRelations = relations(
+	brazosArmados,
 	({ one, many }) => ({
-		state: one(states, {
-			fields: [regionalPresence.stateId],
-			references: [states.id],
+		cartel: one(carteles, {
+			fields: [brazosArmados.cartelId],
+			references: [carteles.id],
 		}),
-		cartel: one(cartels, {
-			fields: [regionalPresence.cartelId],
-			references: [cartels.id],
-		}),
-		alliance: one(alliances, {
-			fields: [regionalPresence.allianceId],
-			references: [alliances.id],
-		}),
-		factions: many(presenceFactions),
-		armedWings: many(presenceArmedWings),
-		leaders: many(presenceLeaders),
-		economies: many(presenceEconomies),
+		presencias: many(presenciasBrazosArmados),
 	}),
 );
 
-/**
- * Relaciones inversas y adicionales para Catálogos.
- */
-export const statesRelations = relations(states, ({ many }) => ({
-	presences: many(regionalPresence),
-	incidents: many(incidents),
-}));
+// --- PRESENCIAS (NÚCLEO) ---
 
-export const cartelsRelations = relations(cartels, ({ many }) => ({
-	presences: many(regionalPresence),
-	incidents: many(incidentCartels),
-}));
-
-export const factionsRelations = relations(factions, ({ many }) => ({
-	presences: many(presenceFactions),
-}));
-
-export const armedWingsRelations = relations(armedWings, ({ many }) => ({
-	presences: many(presenceArmedWings),
-}));
-
-export const leadersRelations = relations(leaders, ({ many }) => ({
-	presences: many(presenceLeaders),
-}));
-
-export const alliancesRelations = relations(alliances, ({ many }) => ({
-	presences: many(regionalPresence),
-}));
-
-export const economicActivitiesRelations = relations(
-	economicActivities,
-	({ many }) => ({
-		presences: many(presenceEconomies),
+export const presenciasRelations = relations(presencias, ({ one, many }) => ({
+	cartel: one(carteles, {
+		fields: [presencias.cartelId],
+		references: [carteles.id],
 	}),
-);
-
-export const incidentsRelations = relations(incidents, ({ one, many }) => ({
-	state: one(states, {
-		fields: [incidents.stateId],
-		references: [states.id],
+	estado: one(estados, {
+		fields: [presencias.estadoId],
+		references: [estados.id],
 	}),
-	cartels: many(incidentCartels),
+	operadores: many(operadoresLocales),
+	facciones: many(presenciasFacciones),
+	brazosArmados: many(presenciasBrazosArmados),
 }));
 
-// -----------------------------------------------------------------------------
-// 6. RELACIONES PARA TABLAS PIVOTE (ESTRUCTURA BIDIRECCIONAL)
-// -----------------------------------------------------------------------------
+// --- ALIANZAS ---
 
-export const presenceFactionsRelations = relations(
-	presenceFactions,
+export const alianzasRelations = relations(alianzas, ({ one, many }) => ({
+	estado: one(estados, {
+		fields: [alianzas.estadoId],
+		references: [estados.id],
+	}),
+	participantes: many(participantesAlianza),
+}));
+
+// --- PIVOTES ---
+
+export const operadoresLocalesRelations = relations(
+	operadoresLocales,
 	({ one }) => ({
-		presence: one(regionalPresence, {
-			fields: [presenceFactions.presenceId],
-			references: [regionalPresence.id],
+		presencia: one(presencias, {
+			fields: [operadoresLocales.presenciaId],
+			references: [presencias.id],
 		}),
-		faction: one(factions, {
-			fields: [presenceFactions.factionId],
-			references: [factions.id],
-		}),
-	}),
-);
-
-export const presenceArmedWingsRelations = relations(
-	presenceArmedWings,
-	({ one }) => ({
-		presence: one(regionalPresence, {
-			fields: [presenceArmedWings.presenceId],
-			references: [regionalPresence.id],
-		}),
-		armedWing: one(armedWings, {
-			fields: [presenceArmedWings.armedWingId],
-			references: [armedWings.id],
+		persona: one(personas, {
+			fields: [operadoresLocales.personaId],
+			references: [personas.id],
 		}),
 	}),
 );
 
-export const presenceLeadersRelations = relations(
-	presenceLeaders,
+export const presenciasFaccionesRelations = relations(
+	presenciasFacciones,
 	({ one }) => ({
-		presence: one(regionalPresence, {
-			fields: [presenceLeaders.presenceId],
-			references: [regionalPresence.id],
+		presencia: one(presencias, {
+			fields: [presenciasFacciones.presenciaId],
+			references: [presencias.id],
 		}),
-		leader: one(leaders, {
-			fields: [presenceLeaders.leaderId],
-			references: [leaders.id],
+		faccion: one(facciones, {
+			fields: [presenciasFacciones.faccionId],
+			references: [facciones.id],
 		}),
 	}),
 );
 
-export const presenceEconomiesRelations = relations(
-	presenceEconomies,
+export const presenciasBrazosArmadosRelations = relations(
+	presenciasBrazosArmados,
 	({ one }) => ({
-		presence: one(regionalPresence, {
-			fields: [presenceEconomies.presenceId],
-			references: [regionalPresence.id],
+		presencia: one(presencias, {
+			fields: [presenciasBrazosArmados.presenciaId],
+			references: [presencias.id],
 		}),
-		economy: one(economicActivities, {
-			fields: [presenceEconomies.economyId],
-			references: [economicActivities.id],
+		brazoArmado: one(brazosArmados, {
+			fields: [presenciasBrazosArmados.brazoArmadoId],
+			references: [brazosArmados.id],
 		}),
 	}),
 );
 
-export const incidentCartelsRelations = relations(
-	incidentCartels,
-	({ one }) => ({
-		incident: one(incidents, {
-			fields: [incidentCartels.incidentId],
-			references: [incidents.id],
-		}),
-		cartel: one(cartels, {
-			fields: [incidentCartels.cartelId],
-			references: [cartels.id],
-		}),
+// --- POLIMÓRFICAS (SIN RELACIONES DRIZZLE DIRECTAS) ---
+
+export const incidentesRelations = relations(incidentes, ({ one }) => ({
+	estado: one(estados, {
+		fields: [incidentes.estadoId],
+		references: [estados.id],
 	}),
-);
+}));

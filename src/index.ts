@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { db, healthCheck } from "./db";
-import { cartels, regionalPresence, states } from "./db/schema";
+import { carteles, estados, presencias } from "./db/schema";
 import { authMiddleware } from "./middleware/auth";
 import { getCartelBySlugRoute, listCartelsRoute } from "./routes/cartel.route";
 import { dominantPresenceRoute } from "./routes/dominant.route";
@@ -64,24 +64,22 @@ api.openapi(healthRoute, async (c) => {
 
 api.openapi(mapRoute, async (c) => {
 	try {
-		const presenceRecords = await db.query.states.findMany({
+		const records = await db.query.estados.findMany({
 			with: {
-				presences: {
+				presencias: {
 					with: { cartel: true },
-					orderBy: (presences, { desc }) => [desc(presences.isDominant)],
 				},
 			},
-			orderBy: (states, { asc }) => [asc(states.name)],
+			orderBy: (estados, { asc }) => [asc(estados.nombre)],
 		});
 
-		const result = presenceRecords.map((stateRecord) => ({
-			stateSlug: stateRecord.slug,
-			stateName: stateRecord.name,
-			cartels: stateRecord.presences.map((p) => ({
+		const result = records.map((r) => ({
+			stateSlug: r.slug,
+			stateName: r.nombre,
+			cartels: r.presencias.map((p) => ({
 				id: p.cartel.id,
-				name: p.cartel.name,
+				name: p.cartel.nombre,
 				color: p.cartel.color,
-				isDominant: p.isDominant,
 				slug: p.cartel.slug,
 			})),
 		}));
