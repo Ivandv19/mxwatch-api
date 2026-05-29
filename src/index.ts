@@ -45,13 +45,18 @@ app.openAPIRegistry.registerComponent(
 	SECURITY_SCHEME,
 );
 
-app.route("/api", api);
-app.doc("/api/doc", OPENAPI_INFO);
-app.get("/api/docs", swaggerUI({ url: "/api/doc" }));
+const appConRutas = app
+	.route("/api", api)
+	.doc("/api/doc", OPENAPI_INFO)
+	.get("/api/docs", swaggerUI({ url: "/api/doc" }))
+	.onError((err, c) => {
+		console.error("Error no capturado:", err);
+		return c.json({ exito: false, error: "Error interno del servidor" }, 500);
+	});
 
-app.onError((err, c) => {
-	console.error("Unhandled error:", err);
-	return c.json({ success: false, error: "Internal Server Error" }, 500);
-});
+export type AppType = typeof appConRutas;
 
-export default { port: parseInt(process.env.PORT || "3001"), fetch: app.fetch };
+export default {
+	port: parseInt(process.env.PORT || "3001", 10),
+	fetch: appConRutas.fetch,
+};

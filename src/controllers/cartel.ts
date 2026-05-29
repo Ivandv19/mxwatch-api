@@ -10,25 +10,25 @@ export async function listarCarteles(c: Context) {
 		});
 		return c.json(
 			{
-				success: true,
-				data: allCarteles.map((cr) => ({
+				exito: true,
+				datos: allCarteles.map((cr) => ({
 					id: cr.id,
-					name: cr.nombre,
+					nombre: cr.nombre,
 					slug: cr.slug,
 					color: cr.color,
 				})),
-				count: allCarteles.length,
+				conteo: allCarteles.length,
 			},
 			200,
 		);
 	} catch (_error) {
-		return c.json({ success: false, error: "Database error" }, 500);
+		return c.json({ exito: false, error: "Error de base de datos" }, 500);
 	}
 }
 
 export async function obtenerCartelPorSlug(c: Context) {
 	try {
-		const { slug } = c.req.valid("param");
+		const { slug } = c.req.param() as { slug: string };
 		const cartelRecord = await db.query.carteles.findFirst({
 			where: eq(carteles.slug, slug),
 			with: {
@@ -44,15 +44,15 @@ export async function obtenerCartelPorSlug(c: Context) {
 		});
 
 		if (!cartelRecord)
-			return c.json({ success: false, error: "Cartel not found" }, 404);
+			return c.json({ exito: false, error: "Cártel no encontrado" }, 404);
 
 		const uniqueFactions = new Map();
 		const uniqueLeaders = new Map();
 		const uniqueArmedWings = new Map();
-		const statePresence: Array<{ state: string }> = [];
+		const statePresence: Array<{ nombre_estado: string }> = [];
 
 		cartelRecord.presencias.forEach((presence) => {
-			statePresence.push({ state: presence.estado.nombre });
+			statePresence.push({ nombre_estado: presence.estado.nombre });
 			presence.facciones.forEach((pf) => {
 				uniqueFactions.set(pf.faccion.id, {
 					nombre: pf.faccion.nombre,
@@ -74,24 +74,24 @@ export async function obtenerCartelPorSlug(c: Context) {
 
 		return c.json(
 			{
-				success: true,
-				data: {
+				exito: true,
+				datos: {
 					id: cartelRecord.id,
-					name: cartelRecord.nombre,
+					nombre: cartelRecord.nombre,
 					slug: cartelRecord.slug,
 					color: cartelRecord.color,
-					presence: {
-						states: statePresence,
-						totalStates: statePresence.length,
+					presencia: {
+						estados: statePresence,
+						total_estados: statePresence.length,
 					},
-					factions: Array.from(uniqueFactions.values()),
-					leaders: Array.from(uniqueLeaders.values()),
-					armedWings: Array.from(uniqueArmedWings.values()),
+					facciones: Array.from(uniqueFactions.values()),
+					personas: Array.from(uniqueLeaders.values()),
+					brazos_armados: Array.from(uniqueArmedWings.values()),
 				},
 			},
 			200,
 		);
 	} catch (_error) {
-		return c.json({ success: false, error: "Database error" }, 500);
+		return c.json({ exito: false, error: "Error de base de datos" }, 500);
 	}
 }

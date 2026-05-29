@@ -44,27 +44,27 @@ export const getCartelBySlugRoute = createRoute({
 					schema: createSuccessSchema(
 						z.object({
 							id: z.string().uuid(),
-							name: z.string(),
+							nombre: z.string(),
 							slug: z.string(),
 							color: z.string(),
-							presence: z.object({
-								states: z.array(
+							presencia: z.object({
+								estados: z.array(
 									z.object({
-										state: z.string(),
+										nombre_estado: z.string(),
 									}),
 								),
-								totalStates: z.number(),
+								total_estados: z.number(),
 							}),
-							factions: z.array(
+							facciones: z.array(
 								z.object({
 									nombre: z.string(),
 									enfoque: z.string().nullable(),
 								}),
 							),
-							leaders: z.array(
+							personas: z.array(
 								z.object({ nombre: z.string(), alias: z.string().nullable() }),
 							),
-							armedWings: z.array(z.object({ nombre: z.string() })),
+							brazos_armados: z.array(z.object({ nombre: z.string() })),
 						}),
 						"CartelDetailResponse",
 					),

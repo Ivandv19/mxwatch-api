@@ -26,8 +26,8 @@ export const healthRoute = createRoute({
 				"application/json": {
 					schema: createSuccessSchema(
 						z.object({
-							status: z.string().openapi({ example: "healthy" }),
-							timestamp: z.string().datetime(),
+							estado: z.string().openapi({ example: "saludable" }),
+							marca_tiempo: z.iso.datetime(),
 						}),
 						"HealthResponse",
 					),

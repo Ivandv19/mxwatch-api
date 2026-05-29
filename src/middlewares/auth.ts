@@ -25,44 +25,37 @@ export const authMiddleware = async (c: Context, next: Next) => {
 	const apiKey = c.req.header("x-api-key");
 	const expectedKey = process.env.API_KEY;
 
-	// -----------------------------------------------------------------------------
-	// VALIDACIÓN DE CONFIGURACIÓN DEL SERVIDOR
-	// -----------------------------------------------------------------------------
 	if (!expectedKey) {
 		console.error(
-			"❌ CONFIGURATION ERROR: API_KEY is missing from environment variables.",
+			"❌ ERROR DE CONFIGURACIÓN: API_KEY no está definida en las variables de entorno.",
 		);
 		return c.json(
 			{
-				success: false,
-				error: "Internal Server Error",
-				message:
-					"Acceso bloqueado: El servidor no ha sido configurado con una clave de seguridad.",
+				exito: false,
+				error: "Error interno del servidor",
+				detalle:
+					"Acceso bloqueado: el servidor no ha sido configurado con una clave de seguridad.",
 			},
 			500,
 		);
 	}
 
-	// -----------------------------------------------------------------------------
-	// VALIDACIÓN DE CREDENCIALES DE ACCESO
-	// -----------------------------------------------------------------------------
 	if (apiKey !== expectedKey) {
 		const userAgent = c.req.header("user-agent") || "unknown-agent";
 		console.error(
-			`🔴 UNAUTHORIZED ACCESS ATTEMPT: Denied request from ${userAgent}`,
+			`🔴 INTENTO DE ACCESO NO AUTORIZADO: Denegado desde ${userAgent}`,
 		);
 
 		return c.json(
 			{
-				success: false,
-				error: "Unauthorized",
-				message:
+				exito: false,
+				error: "No autorizado",
+				detalle:
 					'Acceso denegado. Se requiere una API Key válida en el header "x-api-key".',
 			},
 			401,
 		);
 	}
 
-	// ACCESO AUTORIZADO: El flujo continúa al handler de la ruta
 	await next();
 };

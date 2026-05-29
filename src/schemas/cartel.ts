@@ -3,7 +3,7 @@ import { z } from "@hono/zod-openapi";
 export const CartelSchema = z
 	.object({
 		id: z.string().uuid(),
-		name: z.string().openapi({ example: "Cártel de Sinaloa" }),
+		nombre: z.string().openapi({ example: "Cártel de Sinaloa" }),
 		slug: z.string().openapi({ example: "cds" }),
 		color: z.string().openapi({ example: "#2a7de1" }),
 	})
