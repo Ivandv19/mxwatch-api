@@ -1,16 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { createSuccessSchema, ErrorSchema } from "../schemas/common";
-import { StateDetailsResponseSchema } from "../schemas/state";
+import { DetalleEstadoSchema } from "../schemas/state";
 
-/**
- * Endpoint: Inteligencia granular por entidad.
- */
-
-// --- 1. ANALÍTICA ESTATAL ---
-
-/**
- * Informe de grupos, facciones y líderes en un estado específico.
- */
 export const getStateByNameRoute = createRoute({
 	method: "get",
 	path: "/state/{name}",
@@ -26,7 +17,7 @@ export const getStateByNameRoute = createRoute({
 			content: {
 				"application/json": {
 					schema: createSuccessSchema(
-						StateDetailsResponseSchema,
+						DetalleEstadoSchema,
 						"StateDetailsResponse",
 					),
 				},

@@ -2,19 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { createSuccessSchema, ErrorSchema } from "../schemas/common";
 import { MapStatePresenceSchema } from "../schemas/map";
 
-/**
- * Endpoints de Sincronización de Cartografía.
- */
-
-// -----------------------------------------------------------------------------
-// 1. CENSO GEOGRÁFICO
-// -----------------------------------------------------------------------------
-
-/**
- * mapRoute: Data Completa del Mapa Nacional
- * Proporciona un array condensado de todos los estados con sus carteles
- * dominantes, optimizado para la visualización táctica en el cliente.
- */
 export const mapRoute = createRoute({
 	method: "get",
 	path: "/map",

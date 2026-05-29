@@ -2,7 +2,7 @@
 	"name": "mxwatch-api",
 	"type": "module",
 	"scripts": {
-		"dev": "bun --hot run src/index.ts",
+		"dev": "dotenv -e .env.local -- bun --hot run src/index.ts",
 		"deploy": "wrangler deploy --minify",
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
 		"start": "bun run src/index.ts",

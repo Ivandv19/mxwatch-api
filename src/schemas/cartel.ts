@@ -1,89 +1,33 @@
 import { z } from "@hono/zod-openapi";
 
-/**
- * Esquemas de Inteligencia Criminal y Organizacional.
- * Define la estructura de datos para Cárteles, Facciones, Líderes y Actividades.
- */
-
-// -----------------------------------------------------------------------------
-// 1. ORGANIZACIONES PRINCIPALES
-// -----------------------------------------------------------------------------
-
-/**
- * CartelSchema: El núcleo de la organización criminal.
- * Representa la entidad criminal principal con sus metadatos globales y visuales.
- */
 export const CartelSchema = z
 	.object({
 		id: z.string().uuid(),
 		name: z.string().openapi({ example: "Cártel de Sinaloa" }),
 		slug: z.string().openapi({ example: "cds" }),
-		color: z.string().openapi({ example: "#FFA500" }),
-		globalStatus: z
-			.string()
-			.nullable()
-			.openapi({ example: "Activo / Hegemónico" }),
-		foreignDesignation: z
-			.string()
-			.nullable()
-			.openapi({ example: "DTO (Drug Trafficking Organization)" }),
-		fifaRiskLevel: z.string().nullable().openapi({ example: "Crítico" }),
+		color: z.string().openapi({ example: "#2a7de1" }),
 	})
 	.openapi("Cartel");
 
-// -----------------------------------------------------------------------------
-// 2. ESTRUCTURAS SUBORDINADAS
-// -----------------------------------------------------------------------------
-
-/**
- * FactionSchema: Células Operativas
- * Representa subdivisiones o brazos específicos que operan bajo el mando de un cártel.
- */
-export const FactionSchema = z
+export const FaccionSchema = z
 	.object({
 		id: z.string().uuid().optional(),
-		name: z.string().openapi({ example: "Los Chapitos" }),
-		focus: z
-			.string()
-			.nullable()
-			.openapi({ example: "Narcotráfico / Control Territorial" }),
+		nombre: z.string().openapi({ example: "Los Chapitos" }),
+		enfoque: z.string().nullable().openapi({ example: "Fentanilo industrial" }),
 	})
-	.openapi("Faction");
+	.openapi("Faccion");
 
-/**
- * LeaderSchema: Cadena de Mando
- * Personajes clave identificados en la estructura criminal nacional o regional.
- */
-export const LeaderSchema = z
+export const PersonaSchema = z
 	.object({
 		id: z.string().uuid().optional(),
-		name: z.string().openapi({ example: "Ismael Zambada García" }),
+		nombre: z.string().openapi({ example: "Ismael Zambada García" }),
 		alias: z.string().nullable().openapi({ example: "El Mayo" }),
 	})
-	.openapi("Leader");
+	.openapi("Persona");
 
-/**
- * ArmedWingSchema: Brazos Armados
- * Grupos de sicarios con identidad propia vinculados a las organizaciones.
- */
-export const ArmedWingSchema = z
+export const BrazoArmadoSchema = z
 	.object({
 		id: z.string().uuid().optional(),
-		name: z.string().openapi({ example: "Fuerzas Especiales Ántrax" }),
+		nombre: z.string().openapi({ example: "Los Mata Zetas" }),
 	})
-	.openapi("ArmedWing");
-
-// -----------------------------------------------------------------------------
-// 3. ACTIVIDADES ECONÓMICAS
-// -----------------------------------------------------------------------------
-
-/**
- * EconomySchema: Mercados Ilícitos
- * Áreas de especialización delictiva gestionadas por las organizaciones.
- */
-export const EconomySchema = z
-	.object({
-		id: z.string().uuid().optional(),
-		name: z.string().openapi({ example: "Extorsión / Huachicol" }),
-	})
-	.openapi("Economy");
+	.openapi("BrazoArmado");
