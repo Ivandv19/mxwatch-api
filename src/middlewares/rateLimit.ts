@@ -1,5 +1,5 @@
-import { rateLimiter } from "hono-rate-limiter";
 import type { OpenAPIHono } from "@hono/zod-openapi";
+import { rateLimiter } from "hono-rate-limiter";
 
 // Rate limiting: máximo 100 requests por minuto por IP
 export function aplicarRateLimit(app: OpenAPIHono) {

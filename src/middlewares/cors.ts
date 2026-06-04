@@ -1,5 +1,5 @@
-import { cors } from "hono/cors";
 import type { OpenAPIHono } from "@hono/zod-openapi";
+import { cors } from "hono/cors";
 import { env } from "../config/env";
 
 // CORS con orígenes permitidos

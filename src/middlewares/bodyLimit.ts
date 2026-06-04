@@ -1,5 +1,5 @@
-import { bodyLimit } from "hono/body-limit";
 import type { OpenAPIHono } from "@hono/zod-openapi";
+import { bodyLimit } from "hono/body-limit";
 
 // Límite de tamaño del body (1MB)
 export function aplicarBodyLimit(app: OpenAPIHono) {
