@@ -3,10 +3,14 @@ import type { Context } from "hono";
 import { db } from "../db";
 import { estados, personas } from "../db/schema";
 
+// Obtiene inteligencia detallada de un estado por su nombre
 export async function obtenerEstadoPorNombre(c: Context) {
 	try {
+		// Parámetro validado por Zod en el route
 		const { name } = c.req.param() as { name: string };
 		const stateName = decodeURIComponent(name);
+
+		// Consulta el estado con todas sus relaciones
 		const stateRecord = await db.query.estados.findFirst({
 			where: eq(estados.nombre, stateName),
 			with: {
@@ -21,13 +25,15 @@ export async function obtenerEstadoPorNombre(c: Context) {
 			},
 		});
 
+		// 404 si el estado no existe
 		if (!stateRecord)
 			return c.json({ exito: false, error: "Estado no encontrado" }, 404);
 
-		// Jefes máximos de cada cártel (nacional, no estado-específico)
+		// Jefes máximos de cada cártel (nivel nacional)
 		const todosJefes = await db.query.personas.findMany({
 			where: eq(personas.esJefe, true),
 		});
+		// Agrupa jefes por cartelId para incluirlos en la respuesta
 		const jefesPorCartel: Record<string, (typeof todosJefes)[number][]> = {};
 		for (const j of todosJefes) {
 			if (j.cartelId) {
@@ -36,6 +42,7 @@ export async function obtenerEstadoPorNombre(c: Context) {
 			}
 		}
 
+		// Respuesta con carteles, facciones, operadores y brazos armados
 		return c.json(
 			{
 				exito: true,

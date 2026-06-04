@@ -1,30 +1,12 @@
 import type { Context, Next } from "hono";
+import { env } from "../config/env";
 
-/**
- * Sistema de Autenticación Táctica (fail-closed).
- * Implementa una validación estricta mediante API Key en los headers para
- * asegurar la integridad de la inteligencia de MXWatch.
- */
-
-/**
- * Middleware de Autorización: authMiddleware
- * Actúa como la primera línea de defensa para todos los endpoints sensibles.
- *
- * Requisitos de Acceso:
- * 1. El header 'x-api-key' debe estar presente en el request.
- * 2. El valor debe coincidir exactamente con la variable de entorno API_KEY.
- *
- * Estratégia de Seguridad:
- * - Si la API_KEY no está configurada en el servidor, retorna 500 (Internal Error).
- * - Si la llave es incorrecta o falta, retorna 401 (Unauthorized).
- *
- * @param {Context} c - Contexto de la petición Hono.
- * @param {Next} next - Función para ceder el control al siguiente handler.
- */
+// Autenticación por API Key (fail-closed)
 export const authMiddleware = async (c: Context, next: Next) => {
 	const apiKey = c.req.header("x-api-key");
-	const expectedKey = process.env.API_KEY;
+	const expectedKey = env.API_KEY;
 
+	// API_KEY no configurada en el servidor
 	if (!expectedKey) {
 		console.error(
 			"❌ ERROR DE CONFIGURACIÓN: API_KEY no está definida en las variables de entorno.",
@@ -40,12 +22,12 @@ export const authMiddleware = async (c: Context, next: Next) => {
 		);
 	}
 
+	// API Key inválida o ausente
 	if (apiKey !== expectedKey) {
 		const userAgent = c.req.header("user-agent") || "unknown-agent";
 		console.error(
 			`🔴 INTENTO DE ACCESO NO AUTORIZADO: Denegado desde ${userAgent}`,
 		);
-
 		return c.json(
 			{
 				exito: false,

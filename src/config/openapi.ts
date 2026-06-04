@@ -1,7 +1,9 @@
+import { env } from "./env";
+
 export const OPENAPI_INFO = {
 	openapi: "3.0.0",
 	info: {
-		version: process.env.API_VERSION || "1.0.0",
+		version: env.API_VERSION,
 		title: "MXWatch API",
 		description: "API de inteligencia táctica.",
 	},

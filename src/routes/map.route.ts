@@ -1,7 +1,9 @@
+// Schemas de respuesta
 import { createRoute, z } from "@hono/zod-openapi";
 import { createSuccessSchema, ErrorSchema } from "../schemas/common";
 import { MapStatePresenceSchema } from "../schemas/map";
 
+// Mapa territorial: presencia de cárteles por estado
 export const mapRoute = createRoute({
 	method: "get",
 	path: "/map",

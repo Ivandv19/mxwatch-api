@@ -1,13 +1,26 @@
+// Dependencias Hono
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+
+// Configuración
+import { env } from "./config/env";
 import { OPENAPI_INFO, SECURITY_SCHEME } from "./config/openapi";
+
+// Controllers
 import { listarCarteles, obtenerCartelPorSlug } from "./controllers/cartel";
 import { obtenerEstadoPorNombre } from "./controllers/estado";
 import { obtenerMapa } from "./controllers/mapa";
 import { verificarSalud } from "./controllers/salud";
+
+// Middleware
 import { authMiddleware } from "./middlewares/auth";
+import { aplicarBodyLimit } from "./middlewares/bodyLimit";
+import { aplicarCors } from "./middlewares/cors";
+import { aplicarRateLimit } from "./middlewares/rateLimit";
+import { aplicarSecureHeaders } from "./middlewares/secureHeaders";
+
+// Rutas registradas
 import { getCartelBySlugRoute, listCartelsRoute } from "./routes/cartel.route";
 import { healthRoute } from "./routes/health.route";
 import { mapRoute } from "./routes/map.route";
@@ -16,35 +29,41 @@ import { getStateByNameRoute } from "./routes/state.route";
 const app = new OpenAPIHono();
 const api = new OpenAPIHono();
 
+// Rutas públicas que no requieren API Key
 const PUBLIC_ROUTES = ["/api/health", "/api/docs", "/api/doc"];
 
+// Logger de peticiones
 app.use("*", logger());
-app.use(
-	"/*",
-	cors({
-		origin: (
-			process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001"
-		).split(","),
-	}),
-);
 
+// Seguridad: headers, body limit y rate limiting
+aplicarSecureHeaders(app);
+aplicarBodyLimit(app);
+aplicarRateLimit(app);
+
+// CORS con orígenes permitidos
+aplicarCors(app);
+
+// Autenticación por API Key (fail-closed)
 api.use("*", async (c, next) => {
 	if (PUBLIC_ROUTES.includes(c.req.path)) return await next();
 	return await authMiddleware(c, next);
 });
 
+// Registro de endpoints OpenAPI
 api.openapi(healthRoute, verificarSalud);
 api.openapi(mapRoute, obtenerMapa);
 api.openapi(listCartelsRoute, listarCarteles);
 api.openapi(getCartelBySlugRoute, obtenerCartelPorSlug);
 api.openapi(getStateByNameRoute, obtenerEstadoPorNombre);
 
+// Esquema de seguridad para Swagger
 app.openAPIRegistry.registerComponent(
 	"securitySchemes",
 	"apiKey",
 	SECURITY_SCHEME,
 );
 
+// Ensamblado final con documentación y error handler
 const appConRutas = app
 	.route("/api", api)
 	.doc("/api/doc", OPENAPI_INFO)
@@ -57,6 +76,6 @@ const appConRutas = app
 export type AppType = typeof appConRutas;
 
 export default {
-	port: parseInt(process.env.PORT || "3001", 10),
+	port: env.PORT,
 	fetch: appConRutas.fetch,
 };

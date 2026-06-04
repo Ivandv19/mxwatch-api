@@ -1,8 +1,10 @@
 import type { Context } from "hono";
 import { db } from "../db";
 
+// Obtiene todos los estados con su presencia de cárteles
 export async function obtenerMapa(c: Context) {
 	try {
+		// Consulta estados con presencias y sus cárteles asociados
 		const records = await db.query.estados.findMany({
 			with: {
 				presencias: {
@@ -12,6 +14,7 @@ export async function obtenerMapa(c: Context) {
 			orderBy: (estados, { asc }) => [asc(estados.nombre)],
 		});
 
+		// Mapea a formato de respuesta
 		const result = records.map((r) => ({
 			slug_estado: r.slug,
 			nombre_estado: r.nombre,
@@ -32,6 +35,7 @@ export async function obtenerMapa(c: Context) {
 			200,
 		);
 	} catch (_error) {
+		// Error de conexión o consulta
 		return c.json({ exito: false, error: "Error de base de datos" }, 500);
 	}
 }

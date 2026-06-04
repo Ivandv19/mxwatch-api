@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { db } from "../db";
 import { carteles } from "../db/schema";
 
+// Lista todos los cárteles ordenados por nombre
 export async function listarCarteles(c: Context) {
 	try {
 		const allCarteles = await db.query.carteles.findMany({
@@ -26,9 +27,13 @@ export async function listarCarteles(c: Context) {
 	}
 }
 
+// Obtiene detalle de un cártel por slug con presencia, facciones y estructura
 export async function obtenerCartelPorSlug(c: Context) {
 	try {
+		// Parámetro validado por Zod en el route
 		const { slug } = c.req.param() as { slug: string };
+
+		// Consulta el cártel con todas sus relaciones
 		const cartelRecord = await db.query.carteles.findFirst({
 			where: eq(carteles.slug, slug),
 			with: {
@@ -43,9 +48,11 @@ export async function obtenerCartelPorSlug(c: Context) {
 			},
 		});
 
+		// 404 si el cártel no existe
 		if (!cartelRecord)
 			return c.json({ exito: false, error: "Cártel no encontrado" }, 404);
 
+		// Deduplica facciones, líderes y brazos armados del cártel
 		const uniqueFactions = new Map();
 		const uniqueLeaders = new Map();
 		const uniqueArmedWings = new Map();
@@ -72,6 +79,7 @@ export async function obtenerCartelPorSlug(c: Context) {
 			});
 		});
 
+		// Respuesta con presencia, facciones, personas y brazos armados
 		return c.json(
 			{
 				exito: true,

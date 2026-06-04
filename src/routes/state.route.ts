@@ -1,7 +1,9 @@
+// Schemas de respuesta
 import { createRoute, z } from "@hono/zod-openapi";
 import { createSuccessSchema, ErrorSchema } from "../schemas/common";
 import { DetalleEstadoSchema } from "../schemas/state";
 
+// Inteligencia detallada de un estado por nombre
 export const getStateByNameRoute = createRoute({
 	method: "get",
 	path: "/state/{name}",

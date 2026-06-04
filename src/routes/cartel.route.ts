@@ -1,7 +1,9 @@
+// Schemas de respuesta
 import { createRoute, z } from "@hono/zod-openapi";
 import { CartelSchema } from "../schemas/cartel";
 import { createSuccessSchema, ErrorSchema } from "../schemas/common";
 
+// Listado general de cárteles
 export const listCartelsRoute = createRoute({
 	method: "get",
 	path: "/cartels",
@@ -27,6 +29,7 @@ export const listCartelsRoute = createRoute({
 	security: [{ apiKey: [] }],
 });
 
+// Ficha de inteligencia de un cártel por slug
 export const getCartelBySlugRoute = createRoute({
 	method: "get",
 	path: "/cartel/{slug}",

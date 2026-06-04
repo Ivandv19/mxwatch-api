@@ -1,19 +1,8 @@
+// Schemas de respuesta
 import { createRoute, z } from "@hono/zod-openapi";
 import { createSuccessSchema, ErrorSchema } from "../schemas/common";
 
-/**
- * Endpoints de Diagnóstico e Infraestructura.
- */
-
-// -----------------------------------------------------------------------------
-// 1. HEALTH CHECK (PÚBLICO)
-// -----------------------------------------------------------------------------
-
-/**
- * healthRoute: Diagnóstico de Supervivencia
- * Permite que sistemas externos (Uptime Kuma, Cloudflare, etc.) verifiquen
- * la salud del servidor y la conectividad SQL sin autenticación.
- */
+// Health check público (sin autenticación)
 export const healthRoute = createRoute({
 	method: "get",
 	path: "/health",

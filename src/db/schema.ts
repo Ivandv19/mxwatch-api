@@ -25,10 +25,9 @@ export const severityEnum = pgEnum("severity", [
 	"critical",
 ]);
 
-// ---------------------------------------------------------------------------
-// 1. CATÁLOGOS MAESTROS
-// ---------------------------------------------------------------------------
+// 1. Catálogos maestros
 
+// Cárteles registrados
 export const carteles = pgTable(
 	"carteles",
 	{
@@ -44,6 +43,7 @@ export const carteles = pgTable(
 	}),
 );
 
+// Estados de la república
 export const estados = pgTable(
 	"estados",
 	{
@@ -58,6 +58,7 @@ export const estados = pgTable(
 	}),
 );
 
+// Personas (jefes y operadores)
 export const personas = pgTable(
 	"personas",
 	{
@@ -78,6 +79,7 @@ export const personas = pgTable(
 	}),
 );
 
+// Facciones de un cártel
 export const facciones = pgTable(
 	"facciones",
 	{
@@ -95,6 +97,7 @@ export const facciones = pgTable(
 	}),
 );
 
+// Brazos armados de un cártel
 export const brazosArmados = pgTable(
 	"brazos_armados",
 	{
@@ -111,6 +114,7 @@ export const brazosArmados = pgTable(
 	}),
 );
 
+// Actividades económicas (catálogo)
 export const actividadesEconomicas = pgTable(
 	"actividades_economicas",
 	{
@@ -123,9 +127,7 @@ export const actividadesEconomicas = pgTable(
 	}),
 );
 
-// ---------------------------------------------------------------------------
-// 2. NÚCLEO — PRESENCIAS
-// ---------------------------------------------------------------------------
+// 2. Núcleo — Presencias (relación cartel-estado)
 
 export const presencias = pgTable(
 	"presencias",
@@ -149,9 +151,7 @@ export const presencias = pgTable(
 	}),
 );
 
-// ---------------------------------------------------------------------------
-// 3. PIVOTES
-// ---------------------------------------------------------------------------
+// 3. Pivotes (relaciones muchos a muchos)
 
 export const operadoresLocales = pgTable(
 	"operadores_locales",
@@ -204,9 +204,7 @@ export const presenciasBrazosArmados = pgTable(
 	}),
 );
 
-// ---------------------------------------------------------------------------
-// 4. POLIMÓRFICAS (FLEXIBLES)
-// ---------------------------------------------------------------------------
+// 4. Polimórficas (entidades flexibles)
 
 export const alianzas = pgTable(
 	"alianzas",
@@ -259,9 +257,7 @@ export const entidadesActividades = pgTable(
 	}),
 );
 
-// ---------------------------------------------------------------------------
-// 5. INCIDENTES (v2)
-// ---------------------------------------------------------------------------
+// 5. Incidentes (v2)
 
 export const incidentes = pgTable(
 	"incidentes",
@@ -283,9 +279,7 @@ export const incidentes = pgTable(
 	}),
 );
 
-// ---------------------------------------------------------------------------
-// 6. RELACIONES
-// ---------------------------------------------------------------------------
+// 6. Relaciones Drizzle
 
 // --- CARTELES ---
 
